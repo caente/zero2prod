@@ -1,27 +1,3 @@
-use actix_web::dev::Server;
-use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
-use std::net::TcpListener;
-use serde;
-
-pub fn run(listener: TcpListener) -> std::io::Result<Server> {
-    let server = HttpServer::new(|| {
-        App::new()
-            .route("/health_check", web::get().to(health_check))
-            .route("/subscribe", web::post().to(subscribe))
-    })
-    .listen(listener)?
-    .run();
-    Ok(server)
-}
-
-#[derive(serde::Deserialize)]
-struct FormData {
-    name: String,
-    email: String
-}
-async fn subscribe(form: web::Form<FormData>) -> impl Responder {
-    HttpResponse::Ok().finish()
-}
-async fn health_check(req: HttpRequest) -> impl Responder {
-    HttpResponse::Ok().finish()
-}
+pub mod configuration;
+pub mod routes;
+pub mod startup;
