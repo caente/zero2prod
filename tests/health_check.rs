@@ -1,10 +1,23 @@
 use reqwest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
-use std::ops::Deref;
+use std::sync::LazyLock;
 use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use zero2prod::startup::run;
+use zero2prod::telemetry;
+
+static TRACING: LazyLock<()> = LazyLock::new(|| {
+    let subscriber_name = "zero2prod_tests".into();
+    let level = "debug".into();
+    if (std::env::var("TEST_LOG").is_ok()) {
+        let subscriber = telemetry::get_subscriber(subscriber_name, level, std::io::stdout);
+        telemetry::init_subscriber(subscriber);
+    } else {
+        let subscriber = telemetry::get_subscriber(subscriber_name, level, std::io::sink);
+        telemetry::init_subscriber(subscriber);
+    }
+});
 
 #[tokio::test]
 async fn health_check_works() {
@@ -72,6 +85,7 @@ struct TestApp {
     pub db_pool: PgPool,
 }
 async fn spawn_app() -> TestApp {
+    LazyLock::force(&TRACING);
     let mut configuration = get_configuration().expect("Failed to read conf");
     configuration.database.database_name = Uuid::new_v4().to_string();
 

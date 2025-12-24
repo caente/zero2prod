@@ -18,7 +18,9 @@ chrono = {version = "0.4.42", default-features = false, features = ["clock"]}
 config = "0.15"
 uuid = {version = "1", features = ["v4"]}
 env_logger = "0.11"
-log = "0.4"
+tracing = {version = "0.1", features = ["log"]}
+tracing-subscriber = {version = "0.3", features = ["registry", "env-filter"]}
+tracing-bunyan-formatter = "0.3"
 
 [dependencies.sqlx]
 version = "0.8"
