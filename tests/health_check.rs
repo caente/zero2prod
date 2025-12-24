@@ -33,7 +33,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
         .await
         .expect("Failed to execute request");
     assert_eq!(200, response.status().as_u16());
-    let saved = sqlx::query!("SELECT email, name FROM subscriptions",)
+    let saved = sqlx::query!(r#"SELECT email, name FROM subscriptions"#,)
         .fetch_one(&db_pool)
         .await
         .expect("Failed to fetch");
@@ -93,7 +93,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         username: "postgres".to_string(),
         password: "password".to_string(),
         host: config.host.clone(),
-        port: config.port
+        port: config.port,
     };
     let mut connection = PgConnection::connect(&maintenance_settings.connection_string())
         .await
