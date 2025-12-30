@@ -12,7 +12,7 @@ APP_DB_BANE="${APP_DB_BANE:=newsletter}"
 
 if [[ -z "${SKIP_DOCKER}" ]]
 then
-  CONTAINER_NAME="postgres"
+  CONTAINER_NAME="postgres-newsletter"
   docker run \
     --env POSTGRES_USER="${SUPERUSER}" \
     --env POSTGRES_PASSWORD="${SUPERUSER_PWD}" \
