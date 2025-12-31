@@ -109,16 +109,17 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         password: SecretBox::new(Box::new("password".to_string())),
         host: config.host.clone(),
         port: config.port,
+        require_ssl: false,
     };
     let mut connection =
-        PgConnection::connect(&maintenance_settings.connection_string().expose_secret())
+        PgConnection::connect_with(&maintenance_settings.connection_options())
             .await
             .expect("Failed to connect to postgres");
     connection
         .execute(format!(r#"CREATE DATABASE "{}"; "#, config.database_name).as_str())
         .await
         .expect("Failed to create the database");
-    let connection_pool = PgPool::connect(&config.connection_string().expose_secret())
+    let connection_pool = PgPool::connect_with(config.connection_options())
         .await
         .expect("Failed to connect to postgres");
     sqlx::migrate!("./migrations")
