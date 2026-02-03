@@ -1,17 +1,17 @@
 use reqwest;
-use secrecy::{ExposeSecret, SecretBox};
+use secrecy::SecretBox;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
-use zero2prod::configuration::{DatabaseSettings, get_configuration};
+use zero2prod::configuration::{get_configuration, DatabaseSettings};
 use zero2prod::startup::run;
 use zero2prod::telemetry;
 
 static TRACING: LazyLock<()> = LazyLock::new(|| {
     let subscriber_name = "zero2prod_tests".into();
     let level = "debug".into();
-    if (std::env::var("TEST_LOG").is_ok()) {
+    if std::env::var("TEST_LOG").is_ok() {
         let subscriber = telemetry::get_subscriber(subscriber_name, level, std::io::stdout);
         telemetry::init_subscriber(subscriber);
     } else {
@@ -62,7 +62,7 @@ async fn subscribe_returns_400_when_data_is_missing() {
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%30gmail.com", "missing the name"),
-        ("", "missing name and email"),
+        ("", "missing name and email")
     ];
     for (invalid_body, error_message) in test_cases {
         let response = client
@@ -78,6 +78,31 @@ async fn subscribe_returns_400_when_data_is_missing() {
             "There should be failure for payload {}",
             error_message
         );
+    }
+}
+
+#[tokio::test]
+async fn subscribe_returns_400_when_fields_are_present_but_empty(){
+    let app = spawn_app().await;
+    let client = reqwest::Client::new();
+    let test_cases  = vec![
+        ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
+        ("name=Ursula@email=", "empty email"),
+        ("name=Ursula&email=bad-email", "invalid email")
+    ];
+    for (body, description) in test_cases {
+        let response = client.post(&format!("{}/subscribe", app.address))
+            .header("Content-Type", "application/x-www-form-urlencoded")
+            .body(body)
+            .send()
+            .await
+            .expect("Failed to execute request");
+        assert_eq!(
+            400,
+            response.status().as_u16(),
+            "Did not return 400: {}",
+            description
+        )
     }
 }
 
@@ -106,7 +131,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let maintenance_settings = DatabaseSettings {
         database_name: "postgres".to_string(),
         username: "postgres".to_string(),
-        password: SecretBox::new(Box::new("password".to_string())),
+        password: SecretBox::new(Box::new("postgres".to_string())),
         host: config.host.clone(),
         port: config.port,
         require_ssl: false,
