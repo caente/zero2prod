@@ -4,7 +4,8 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
 use uuid::Uuid;
-use zero2prod::configuration::{get_configuration, DatabaseSettings};
+use zero2prod::configuration::{DatabaseSettings, get_configuration};
+use zero2prod::email_client::EmailClient;
 use zero2prod::startup::run;
 use zero2prod::telemetry;
 
@@ -62,7 +63,7 @@ async fn subscribe_returns_400_when_data_is_missing() {
     let test_cases = vec![
         ("name=le%20guin", "missing the email"),
         ("email=ursula_le_guin%30gmail.com", "missing the name"),
-        ("", "missing name and email")
+        ("", "missing name and email"),
     ];
     for (invalid_body, error_message) in test_cases {
         let response = client
@@ -82,16 +83,17 @@ async fn subscribe_returns_400_when_data_is_missing() {
 }
 
 #[tokio::test]
-async fn subscribe_returns_400_when_fields_are_present_but_empty(){
+async fn subscribe_returns_400_when_fields_are_present_but_empty() {
     let app = spawn_app().await;
     let client = reqwest::Client::new();
-    let test_cases  = vec![
+    let test_cases = vec![
         ("name=&email=ursula_le_guin%40gmail.com", "empty name"),
         ("name=Ursula@email=", "empty email"),
-        ("name=Ursula&email=bad-email", "invalid email")
+        ("name=Ursula&email=bad-email", "invalid email"),
     ];
     for (body, description) in test_cases {
-        let response = client.post(&format!("{}/subscribe", app.address))
+        let response = client
+            .post(&format!("{}/subscribe", app.address))
             .header("Content-Type", "application/x-www-form-urlencoded")
             .body(body)
             .send()
@@ -114,14 +116,15 @@ async fn spawn_app() -> TestApp {
     LazyLock::force(&TRACING);
     let mut configuration = get_configuration().expect("Failed to read conf");
     configuration.database.database_name = Uuid::new_v4().to_string();
-
+    let sender_email = configuration.email_client.sender().expect("Wrong email");
+    let email_client = EmailClient::new(configuration.email_client.base_url, sender_email);
     let db_pool = configure_database(&configuration.database).await;
     let listener = TcpListener::bind("127.0.0.1:0").expect("Port unavailable");
     let port = listener
         .local_addr()
         .expect("Local address not found")
         .port();
-    let server = run(listener, db_pool.clone()).expect("Failed to start server");
+    let server = run(listener, db_pool.clone(), email_client).expect("Failed to start server");
     let _ = tokio::spawn(server);
     let address = format!("http://127.0.0.1:{}", port);
     TestApp { address, db_pool }
@@ -136,10 +139,9 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         port: config.port,
         require_ssl: false,
     };
-    let mut connection =
-        PgConnection::connect_with(&maintenance_settings.connection_options())
-            .await
-            .expect("Failed to connect to postgres");
+    let mut connection = PgConnection::connect_with(&maintenance_settings.connection_options())
+        .await
+        .expect("Failed to connect to postgres");
     connection
         .execute(format!(r#"CREATE DATABASE "{}"; "#, config.database_name).as_str())
         .await

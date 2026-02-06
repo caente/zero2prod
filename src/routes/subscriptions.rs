@@ -1,5 +1,4 @@
 use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
-use actix_web::web::Form;
 use actix_web::{HttpResponse, Responder, web};
 use chrono::Utc;
 use serde;
