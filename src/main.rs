@@ -11,6 +11,7 @@ async fn main() -> std::io::Result<()> {
     telemetry::init_subscriber(subscriber);
     let configuration = get_configuration().expect("Missing conf file");
     let connection = PgPool::connect_lazy_with(configuration.database.connection_options());
+    let timeout = configuration.email_client.timeout();
     let sender_email = configuration
         .email_client
         .sender()
@@ -19,6 +20,7 @@ async fn main() -> std::io::Result<()> {
         configuration.email_client.base_url,
         sender_email,
         configuration.email_client.authorization_token,
+        timeout,
     );
     let address = format!(
         "{}:{}",

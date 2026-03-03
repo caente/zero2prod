@@ -1,9 +1,9 @@
+use fake::{Fake, Faker};
 use reqwest;
 use secrecy::SecretBox;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use std::net::TcpListener;
 use std::sync::LazyLock;
-use fake::{Fake, Faker};
 use uuid::Uuid;
 use zero2prod::configuration::{DatabaseSettings, get_configuration};
 use zero2prod::email_client::EmailClient;
@@ -118,7 +118,12 @@ async fn spawn_app() -> TestApp {
     let mut configuration = get_configuration().expect("Failed to read conf");
     configuration.database.database_name = Uuid::new_v4().to_string();
     let sender_email = configuration.email_client.sender().expect("Wrong email");
-    let email_client = EmailClient::new(configuration.email_client.base_url, sender_email, SecretBox::new(Box::new(Faker.fake())));
+    let email_client = EmailClient::new(
+        configuration.email_client.base_url,
+        sender_email,
+        SecretBox::new(Box::new(Faker.fake())),
+        std::time::Duration::from_millis(200),
+    );
     let db_pool = configure_database(&configuration.database).await;
     let listener = TcpListener::bind("127.0.0.1:0").expect("Port unavailable");
     let port = listener
